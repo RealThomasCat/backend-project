@@ -1,3 +1,5 @@
+// Creating a custom response class to send back to the client
+
 class ApiResponse {
   constructor(statusCode, data, message = "Success") {
     this.statusCode = statusCode;
@@ -6,3 +8,5 @@ class ApiResponse {
     this.success = statusCode < 400;
   }
 }
+
+export { ApiResponse };
