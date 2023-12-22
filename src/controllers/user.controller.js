@@ -4,6 +4,27 @@ import { User } from "../models/user.model.js";
 import { uploadOnCloudinary } from "../utils/Cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 
+// Make a function to generate access and refresh tokens
+const generateAccessAndRefreshTokens = async (userId) => {
+  try {
+    // Find user by id
+    const user = await User.findById(userId);
+
+    // generate tokens
+    const accessToken = user.generateAccessToken();
+    const refreshToken = user.generateRefreshToken();
+
+    // Add refresh token to user and save to database
+    user.refreshToken = refreshToken;
+    user.save({ validateBeforeSave: false }); // validateBeforeSave: false because we are not validating before saving
+
+    // Return tokens
+    return { accessToken, refreshToken };
+  } catch (error) {
+    throw new ApiError(500, "Something went wrong while generating tokens");
+  }
+};
+
 const registerUser = asyncHandler(async (req, res) => {
   // Get user details from frontend : first name, last name, email, password, cover image, avatar image,
   const { fullName, email, username, password } = req.body;
@@ -82,4 +103,67 @@ const registerUser = asyncHandler(async (req, res) => {
   );
 });
 
-export { registerUser };
+const loginUser = asyncHandler(async (req, res) => {
+  // Get user details from frontend : email, password
+  const { email, username, password } = req.body;
+
+  // Validate user details
+  if (!(username || email)) {
+    throw new ApiError(400, "username or email is required"); // If both username and password are empty send error
+  }
+
+  // Check if user exists
+  const user = await User.findOne({
+    // Await because database query takes time
+    $or: [{ username }, { email }], // Find a user where either the username or email matches the values provided
+  });
+
+  // If user does not exist, send error
+  if (!user) {
+    throw new ApiError(404, "User does not exist");
+  }
+
+  // Check password if user exists
+  const isPasswordValid = await user.isPasswordCorrect(password); // Await because of bcrypt
+
+  // If password is incorrect, send error
+  if (!isPasswordValid) {
+    throw new ApiError(404, "Invalid user credentials");
+  }
+
+  // Create, save and store tokens
+  const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(
+    user._id
+  );
+
+  // Either update the user with the new refresh token or fetch updated user again from database
+  const loggedInUser = await User.findById(user._id) // Find user by id from database
+    .select("-password -refreshToken"); // Don't need password and refresh token field
+
+  // Initialize cookie options
+  const options = {
+    // These options will ensure that cookie can only be modified by the server
+    httpOnly: true,
+    secure: true,
+  };
+
+  // Send cookie with response
+  return res
+    .status(200)
+    .cookie("accessToken", accessToken, options) // .cookie(key, value, options)
+    .cookie("refreshToken", refreshToken, options)
+    .json(
+      new ApiResponse(
+        200,
+        {
+          // Send user details and tokens in response for user to use (store in local storage, etc)
+          user: loggedInUser,
+          accessToken,
+          refreshToken,
+        },
+        "User logged in successfully"
+      )
+    );
+});
+
+export { registerUser, loginUser };
