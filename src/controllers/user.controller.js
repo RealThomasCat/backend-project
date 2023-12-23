@@ -166,4 +166,34 @@ const loginUser = asyncHandler(async (req, res) => {
     );
 });
 
-export { registerUser, loginUser };
+const logoutUser = asyncHandler(async (req, res) => {
+  // Find user by id and update refresh token to null
+  await User.findByIdAndUpdate(
+    req.user._id, // User id is added to request object by verifyJWT middleware
+    {
+      // Update refresh token to null
+      $set: {
+        refreshToken: null,
+      },
+    },
+    {
+      new: true, // Return updated user instead of old user in response
+    }
+  );
+
+  // Initialize cookie options
+  const options = {
+    // These options will ensure that cookie can only be modified by the server
+    httpOnly: true,
+    secure: true,
+  };
+
+  // Send cookie with response
+  return res
+    .status(200)
+    .clearCookie("accessToken", options)
+    .clearCookie("refreshToken", options)
+    .json(new ApiResponse(200, {}, "User logged out"));
+});
+
+export { registerUser, loginUser, logoutUser };
