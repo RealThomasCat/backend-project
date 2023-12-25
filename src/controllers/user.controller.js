@@ -47,7 +47,8 @@ const registerUser = asyncHandler(async (req, res) => {
   // }
 
   // Check if user already exists: username, email
-  const existedUser = User.findOne({
+  const existedUser = await User.findOne({
+    // Await because database query takes time
     $or: [{ username }, { email }], // Find a user where either the username or email matches the values provided
   });
 
@@ -56,11 +57,22 @@ const registerUser = asyncHandler(async (req, res) => {
     throw new ApiError(409, "User with email or username already exists");
   }
 
-  // Check for images
-  const avatarLocalPath = req.files?.avatar[0]?.path; // If avatar exists, get the path
-  const coverImageLocalPath = req.files?.coverImage[0]?.path; // If coverImage exists, get the path
+  // console.log("req.files: ", req.files);
 
-  // Check for avatar because it is required
+  // Check for images
+  const avatarLocalPath = req.files?.avatar?.[0]?.path; // If avatar exists, get the path
+
+  // We can also use if statements to check for images
+  let coverImageLocalPath;
+  if (
+    req.files &&
+    Array.isArray(req.files.coverImage) &&
+    req.files.coverImage.length > 0
+  ) {
+    coverImageLocalPath = req.files.coverImage[0].path;
+  }
+
+  // Check for avatar if it is extracted or not because it is required
   if (!avatarLocalPath) {
     throw new ApiError(400, "Avatar is required");
   }
@@ -79,7 +91,7 @@ const registerUser = asyncHandler(async (req, res) => {
     // Create user takes time
     fullName,
     avatar: avatar.url, // Send only url of image from all the file info we get from cloudinary
-    coverImage: coverImage?.url || "", // If cover image exists, send url, else send empty string
+    coverImage: coverImage?.url || "", // If cover image exists, send url, else send empty string ( Error can occur if : undefined.url )
     email,
     password,
     username: username.toLowerCase(),
@@ -106,9 +118,10 @@ const registerUser = asyncHandler(async (req, res) => {
 const loginUser = asyncHandler(async (req, res) => {
   // Get user details from frontend : email, password
   const { email, username, password } = req.body;
+  console.log(email);
 
   // Validate user details
-  if (!(username || email)) {
+  if (!username && !email) {
     throw new ApiError(400, "username or email is required"); // If both username and password are empty send error
   }
 
