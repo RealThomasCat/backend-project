@@ -1,3 +1,3 @@
 # Backend project
 
-This is a web development project focused on backend with javascript
+This is a web development project focused on backend with JavaScript
