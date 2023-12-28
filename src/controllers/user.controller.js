@@ -273,4 +273,72 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
   }
 });
 
-export { registerUser, loginUser, logoutUser, refreshAccessToken };
+const changeCurrentPassword = asyncHandler(async (req, res) => {
+  // Get current and new password from user
+  const { oldPassword, newPassword } = req.body;
+
+  // Get user by id (user is added to request object by verifyJWT middleware)
+  const user = await User.findById(req.user?._id);
+
+  // Check if old password is correct
+  const isPasswordCorrect = await user.isPasswordCorrect(oldPassword); // isPasswordCorrect() method is defined in user model
+
+  // Throw error if old password is incorrect
+  if (!isPasswordCorrect) {
+    throw new ApiError(401, "Invalid old password");
+  }
+
+  // If old password is correct, set old password = new password
+  user.password = newPassword;
+
+  // Save user to database
+  await user.save({ validateBeforeSave: false });
+
+  // Return response
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "Password changed successfully")); // ApiResponse(statusCode, data, message)
+});
+
+// Get current user (without password and refresh token)
+const getCurrentUser = asyncHandler(async (req, res) => {
+  return res
+    .status(200)
+    .json(200, req.user, "Current user fetched successfully");
+});
+
+const updateAccountDetails = asyncHandler(async (req, res) => {
+  const { fullName, email } = req.body;
+
+  // We are updating all fields together
+  if (!fullName || !email) {
+    throw new ApiError(400, "All fields are required"); // If any of the fields is empty send error
+  }
+
+  // Find user by id, update details and return updated user
+  const user = User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      // Set new values
+      $set: {
+        fullName,
+        email,
+      },
+    },
+    { new: true } // Return updated user instead of old user in response
+  ).select("-password");
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, user, "Account details updated successfully"));
+});
+
+export {
+  registerUser,
+  loginUser,
+  logoutUser,
+  refreshAccessToken,
+  changeCurrentPassword,
+  getCurrentUser,
+  updateAccountDetails,
+};

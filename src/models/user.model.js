@@ -51,11 +51,11 @@ const userSchema = new Schema(
   }
 );
 
-// Using pre hook to hash password before saving to database
+// Using pre hook to hash password before saving to database whenever user is created or updated
 userSchema.pre("save", async function (next) {
-  if (!this.isModified("password")) return next; // NEGATIVE CHECK : If password is not modified, skip this step
+  if (!this.isModified("password")) return next(); // NEGATIVE CHECK : If password is not modified, skip this step
 
-  this.password = await bcrypt.hashSync(this.password, 10);
+  this.password = await bcrypt.hash(this.password, 10); // POSITIVE CHECK : If password is modified, hash it with 10 rounds of salt
   next();
 });
 
