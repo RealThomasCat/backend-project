@@ -333,6 +333,75 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, user, "Account details updated successfully"));
 });
 
+const updateUserAvatar = asyncHandler(async (req, res) => {
+  // Get avatar image from frontend
+  const avatarLocalPath = req.file?.path; // Get path of avatar image using multer
+
+  if (!avatarLocalPath) {
+    throw new ApiError(400, "Avatar file is required");
+  }
+
+  // Upload avatar image to cloudinary
+  const avatar = await uploadOnCloudinary(avatarLocalPath);
+
+  // Throw error if avatar is not uploaded to cloudinary (if url is missing from avatar object)
+  if (!avatar.url) {
+    throw new ApiError(
+      400,
+      "Something went wrong while uploading avatar image"
+    );
+  }
+
+  // Update user avatar in database
+  const user = await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: {
+        avatar: avatar.url, // Avatar is a string (url)
+      },
+    },
+    { new: true } // Return updated user instead of old user in response
+  ).select("-password");
+
+  // Return response
+  return res
+    .status(200)
+    .json(new ApiResponse(200, user, "Avatar updated successfully"));
+});
+
+const updateCoverImage = asyncHandler(async (req, res) => {
+  // Get cover image from frontend
+  const coverImageLocalPath = req.file?.path; // Get path of cover image using multer
+
+  if (!coverImageLocalPath) {
+    throw new ApiError(400, "Cover image file is required");
+  }
+
+  // Upload cover image to cloudinary
+  const coverImage = await uploadOnCloudinary(coverImageLocalPath);
+
+  // Throw error if Cover Image is not uploaded to cloudinary (if url is missing from coverImage object)
+  if (!coverImage.url) {
+    throw new ApiError(400, "Something went wrong while uploading cover image");
+  }
+
+  // Update user coverImage in database
+  const user = await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: {
+        coverImage: coverImage.url, // coverImage is a string (url)
+      },
+    },
+    { new: true } // Return updated user instead of old user in response
+  ).select("-password");
+
+  // Return response
+  return res
+    .status(200)
+    .json(new ApiResponse(200, user, "Cover image updated successfully"));
+});
+
 export {
   registerUser,
   loginUser,
@@ -341,4 +410,6 @@ export {
   changeCurrentPassword,
   getCurrentUser,
   updateAccountDetails,
+  updateUserAvatar,
+  updateCoverImage,
 };
