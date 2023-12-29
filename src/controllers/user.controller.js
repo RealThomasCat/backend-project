@@ -404,6 +404,88 @@ const updateCoverImage = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, user, "Cover image updated successfully"));
 });
 
+const getUserChannelProfile = asyncHandler(async (req, res) => {
+  // Get username from params
+  const { username } = req.params;
+
+  if (!username?.trim()) {
+    throw new ApiError(400, "Username is missing");
+  }
+
+  // Instead of using find (by username) and then fetching details we can use mongodb aggregation pipeline
+  // to get user user channel profile returned as an object in an array
+  const channel = await User.aggregate([
+    // First stage : match username - filter documents by username (unique)
+    {
+      $match: {
+        username: username?.toLowerCase(),
+      },
+    },
+    // Second stage : lookup - join user and subscription collections to get subscribers object
+    {
+      $lookup: {
+        from: "subscriptions", // Name of collection/model becomes lowercase and plural
+        localField: "_id",
+        foreignField: "channel", // Subscribtion documents wherever this user is a subscribed channel
+        as: "subscribers",
+      },
+    },
+    // Third stage : lookup - join user and subscription collections to get subscribedTo object
+    {
+      $lookup: {
+        from: "subscriptions", // Name of collection/model becomes lowercase and plural
+        localField: "_id",
+        foreignField: "subscriber", // Subscribtion documents wherever this user is a subscriber
+        as: "subscribedTo",
+      },
+    },
+    // Fourth stage : addFields - add subscribersCount, channelsSubscribedToCount and isSubscribed fields to user profile
+    {
+      $addFields: {
+        subscribersCount: {
+          $size: "$subscribers", // Get length of subscribers object
+        },
+        channelsSubscribedToCount: {
+          $size: "$subscribedTo", // Get length of subscribedTo object
+        },
+        isSubscribed: {
+          $cond: {
+            if: { $in: [req.user?._id, "$subscribers.subscriber"] }, // Check if current user is in subscribers object
+            then: true, // If yes, then set isSubscribed = true
+            else: false, // Else false
+          },
+        },
+      },
+    },
+    // Fifth stage : project - select fields to return in response
+    {
+      $project: {
+        fullName: 1,
+        username: 1,
+        subscribersCount: 1,
+        channelsSubscribedToCount: 1,
+        isSubscribed: 1,
+        avatar: 1,
+        coverImage: 1,
+        email: 1,
+        createdAt: 1,
+      },
+    },
+  ]);
+
+  // If channel is not found (first object in array), throw error
+  if (!channel?.length) {
+    throw new ApiError(404, "Channel not found");
+  }
+
+  // Return response
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, channel[0], "User channel fetched successfully")
+    ); // Return channel object (first object in array)
+});
+
 export {
   registerUser,
   loginUser,
@@ -414,4 +496,5 @@ export {
   updateAccountDetails,
   updateUserAvatar,
   updateCoverImage,
+  getUserChannelProfile,
 };
