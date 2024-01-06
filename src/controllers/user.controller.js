@@ -404,6 +404,7 @@ const updateCoverImage = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, user, "Cover image updated successfully"));
 });
 
+// Using mongodb aggregation pipeline to get user channel profile
 const getUserChannelProfile = asyncHandler(async (req, res) => {
   // Get username from params
   const { username } = req.params;
@@ -486,6 +487,68 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
     ); // Return channel object (first object in array)
 });
 
+// Using mongodb nested aggregation pipeline to get user watch history videos
+const getWatchHistory = asyncHandler(async (req, res) => {
+  // Get user by id and populate watch history using nested pipeline
+  const user = await User.aggregate([
+    {
+      $match: {
+        // req.user._id returns string, but we need object id (Usually mongoose automatically converts string to object id)
+        _id: new mongoose.Types.ObjectId(req.user._id), // Convert user id to mongodb object id (mongoose don't do it automatically in aggregation pipeline)
+      },
+    },
+    {
+      // Use nested pipeline to get watch history
+      $lookup: {
+        from: "videos",
+        localField: "watchHistory",
+        foreignField: "_id",
+        as: "watchHistory",
+        // Use nested pipeline to get owner
+        pipeline: [
+          {
+            $lookup: {
+              from: "users",
+              localField: "owner",
+              foreignField: "_id",
+              as: "owner",
+              // Use nested pipeline to select fields to return
+              pipeline: [
+                {
+                  $project: {
+                    fullName: 1,
+                    username: 1,
+                    avatar: 1,
+                  },
+                },
+              ],
+            },
+          },
+          // This pipepile returns owner which is an array with data in its first element
+          {
+            $addFields: {
+              // overwrite owner field with first element of its array (optional data transformation step for frontend)
+              owner: {
+                $first: "$owner", // $first returns first element of owner array
+              },
+            },
+          },
+        ],
+      },
+    },
+  ]);
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        user[0].watchHistory,
+        "Watch history fetched successfully"
+      )
+    );
+});
+
 export {
   registerUser,
   loginUser,
@@ -497,4 +560,5 @@ export {
   updateUserAvatar,
   updateCoverImage,
   getUserChannelProfile,
+  getWatchHistory,
 };
