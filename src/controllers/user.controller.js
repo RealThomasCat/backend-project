@@ -333,6 +333,7 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, user, "Account details updated successfully"));
 });
 
+// TO DO : Delete old avatar image from cloudinary
 const updateUserAvatar = asyncHandler(async (req, res) => {
   // Get avatar image from frontend
   const avatarLocalPath = req.file?.path; // Get path of avatar image using multer
@@ -371,7 +372,7 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, user, "Avatar updated successfully"));
 });
 
-const updateCoverImage = asyncHandler(async (req, res) => {
+const updateUserCoverImage = asyncHandler(async (req, res) => {
   // Get cover image from frontend
   const coverImageLocalPath = req.file?.path; // Get path of cover image using multer
 
@@ -558,7 +559,7 @@ export {
   getCurrentUser,
   updateAccountDetails,
   updateUserAvatar,
-  updateCoverImage,
+  updateUserCoverImage,
   getUserChannelProfile,
   getWatchHistory,
 };
