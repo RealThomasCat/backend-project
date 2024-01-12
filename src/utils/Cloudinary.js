@@ -7,6 +7,7 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+// Uploads a file on cloudinary and returns the file info
 const uploadOnCloudinary = async (localFilePath) => {
   try {
     if (!localFilePath) return null;
@@ -28,4 +29,21 @@ const uploadOnCloudinary = async (localFilePath) => {
   }
 };
 
-export { uploadOnCloudinary };
+// Delete a file from cloudinary using its public_id
+const deleteFromCloudinary = async (public_id) => {
+  try {
+    if (!public_id) return null;
+    // Delete the file from cloudinary
+    const response = await cloudinary.uploader.destroy(public_id);
+
+    // File has been deleted successfully
+    console.log("File is deleted from cloudinary", response.result);
+
+    // return cloudinary response to user
+    return response;
+  } catch (error) {
+    return null;
+  }
+};
+
+export { uploadOnCloudinary, deleteFromCloudinary };

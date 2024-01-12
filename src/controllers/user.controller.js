@@ -1,9 +1,13 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { User } from "../models/user.model.js";
-import { uploadOnCloudinary } from "../utils/Cloudinary.js";
+import {
+  deleteFromCloudinary,
+  uploadOnCloudinary,
+} from "../utils/Cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
 
 // Make a function to generate access and refresh tokens
 const generateAccessAndRefreshTokens = async (userId) => {
@@ -186,8 +190,8 @@ const logoutUser = asyncHandler(async (req, res) => {
     req.user._id, // User id is added to request object by verifyJWT middleware
     {
       // Update refresh token to null
-      $set: {
-        refreshToken: null,
+      $unset: {
+        refreshToken: 1, // This will remove refresh token field from user document
       },
     },
     {
@@ -333,7 +337,6 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, user, "Account details updated successfully"));
 });
 
-// TO DO : Delete old avatar image from cloudinary
 const updateUserAvatar = asyncHandler(async (req, res) => {
   // Get avatar image from frontend
   const avatarLocalPath = req.file?.path; // Get path of avatar image using multer
@@ -342,8 +345,11 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Avatar file is required");
   }
 
+  // Get old avatar image public_id from database
+
   // Upload avatar image to cloudinary
   const avatar = await uploadOnCloudinary(avatarLocalPath);
+  // console.log("avatar: ", avatar);
 
   // Throw error if avatar is not uploaded to cloudinary (if url is missing from avatar object)
   if (!avatar.url) {
@@ -354,6 +360,8 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
   }
 
   // TO DO : Delete old avatar image from cloudinary
+  // *** Don't have old public_id in database ***
+  // await deleteFromCloudinary(oldAvatar?.public_id);
 
   // Update user avatar in database
   const user = await User.findByIdAndUpdate(
